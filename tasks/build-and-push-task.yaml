@@ -1,0 +1,73 @@
+---
+apiVersion: tekton.dev/v1beta1
+kind: Task
+metadata:
+  name: build-and-push
+spec:
+  params:
+    - name: contextDir
+      description: the context dir within source
+      default: .
+    - name: mavenMirrorUrl
+      description: the maven mirrror url
+      default: https://repo.maven.apache.org/maven2/
+    - name: destinationImage
+      description: the fully qualified image name
+      default: "$(outputs.resources.builtImage.url)"
+    - name: dockerFile
+      description: the docker file to used for building the application
+      default: Dockerfile
+    - name: tlsVerify
+      description: tls verify
+      type: string
+      default: "false"
+  resources:
+    inputs:
+      - name: source
+        type: git
+    outputs:
+      - name: builtImage
+        type: image
+  workspaces:
+    - name: maven-settings
+    - name: source
+  steps:
+    - name: build-sources
+      image: docker.io/maven:3.6.3-openjdk-11-slim
+      workingDir: "/workspace/source/$(inputs.params.contextDir)"
+      command:
+        - mvn
+      args:
+        - -s
+        - $(workspaces.maven-settings.path)/settings.xml
+        - -DskipTests
+        - clean
+        # - package
+        - install
+      env:
+        - name: user.home
+          value: /home/tekton
+    - name: build-image-and-push
+      # image: quay.io/buildah/stable
+      image: gcr.io/kaniko-project/executor:v0.17.1
+      # workingDir: "/workspace/source/$(inputs.params.contextDir)"
+      workingDir: "/workspace/source/"
+      env:
+        - name: "DOCKER_CONFIG"
+          value: "/tekton/home/.docker/"
+      command:
+        - /kaniko/executor
+      args:
+        - --insecure
+        - -d "/workspace/source/Dockerfile"
+        # - --dockerfile=$(inputs.params.dockerFile)"
+        - --destination=$(inputs.params.destinationImage)"
+      securityContext:
+        privileged: true
+        runAsUser: 0
+      # volumeMounts:
+      #   - name: varlibc
+      #     mountPath: /var/lib/containers
+  # volumes:
+  #   - name: varlibc
+  #     emptyDir: {}

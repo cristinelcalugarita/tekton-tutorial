@@ -10,16 +10,16 @@ spec:
   params:
     - name: GOALS
       value:
-        - -B
-        - -pl
-        - springboot
+#       - -B
+#       - -pl
+#       - springboot
         - -DskipTests
         - clean
-        - package
+        - install
   workspaces:
     - name: maven-settings
       configmap:
         name: maven-settings
     - name: source
       persistentVolumeClaim:
-        claimName: tekton-tutorial-sources
+        claimName: pipeline-pvc

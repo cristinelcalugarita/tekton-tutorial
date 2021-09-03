@@ -1,0 +1,12 @@
+apiVersion: tekton.dev/v1alpha1
+kind: Condition
+metadata:
+  name: verify
+spec:
+  params:
+    - name: CONTEXT_DIR
+      default: "$(tasks.project-type-check.results.spring-check)"
+      type: string
+  check:
+    image: alpine
+    script: 'test $(params.CONTEXT_DIR) == standalone'

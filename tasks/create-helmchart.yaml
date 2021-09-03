@@ -1,0 +1,79 @@
+apiVersion: tekton.dev/v1beta1
+kind: Task
+metadata:
+  name: helm
+spec:
+  params:
+    - name: IMAGE
+      default: test
+    - name: SERVICE_NAME
+      default: test-service
+    - name: TAG
+      default: v1-test
+    - name: CONTEXT_DIR
+      default: "."
+    - name: HELM_REPO_URL
+      default: http://chartmuseum.l21d31708530003.local
+    - name: HELM_REPO_SECRET
+      default: lab-chartmuseum
+    - name: LOCAL_REPO
+      default: lab-helmrepo
+    - name: HELM_IMAGE
+      default: nexus.l21d31708530003.local:5000/helm:alpine-slim
+    - name: CHART_TEMPLATE_URL
+      default: ssh://git@git.l21d31708530003.local:22022/LAB.l21d31708530003/lab-devops.git
+    - name: CHART_CONTEXT_DIR
+      default: charts/limits-template-novault
+    - name: BUILDREVISION
+      default: develop
+  workspaces:
+    - name: source
+  results:
+    - name: helm-push
+      description: helm push information
+  steps:
+    - name: helm
+      workingDir: "$(workspaces.source.path)/$(params.CONTEXT_DIR)"
+      image: $(params.HELM_IMAGE)
+      env:
+        - name: BASIC_AUTH_USER
+          valueFrom:
+            secretKeyRef:
+              key: BASIC_AUTH_USER
+              name: $(params.HELM_REPO_SECRET)
+        - name: BASIC_AUTH_PASS
+          valueFrom:
+            secretKeyRef:
+              key: BASIC_AUTH_PASS
+              name: $(params.HELM_REPO_SECRET)
+      script: |
+        #!/usr/bin/env bash
+        set -e
+
+        TOOLS_PATH="$(workspaces.source.path)/$(params.CONTEXT_DIR)"/tools
+
+        if [ -f $TOOLS_PATH ]
+          then 
+            find . -type d -name '$TOOLS_PATH' | xargs rm
+        fi
+
+        eval $(ssh-agent)
+
+        printf "Download Helm Chart Template... \n"
+        git config --global core.sshCommand 'ssh -o StrictHostKeyChecking=accept-new'
+        git clone -b $(params.BUILDREVISION) $(params.CHART_TEMPLATE_URL) $TOOLS_PATH
+        
+        printf "Customize project Helm Chart... \n"
+        pushd $TOOLS_PATH/$(params.CHART_CONTEXT_DIR)
+
+        grep -rl '__SERVICE_NAME__' ./ | xargs sed -i 's#__SERVICE_NAME__#$(params.SERVICE_NAME)#g'
+
+        grep -rl '__TAG__' ./ | xargs sed -i 's#__TAG__#$(params.TAG)#g'
+
+        grep -rl '__IMAGE__' ./ | xargs sed -i 's#__IMAGE__#$(params.IMAGE)#g'
+
+        printf "Push Helm Chart into Repository... \n"
+        helm push -u $BASIC_AUTH_USER -p $BASIC_AUTH_PASS . $(params.HELM_REPO_URL) -f | tee $(results.helm-push.path)
+
+        popd
+        

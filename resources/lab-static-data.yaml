@@ -1,0 +1,23 @@
+apiVersion: tekton.dev/v1alpha1
+kind: PipelineResource
+metadata:
+  name: git-lab-static-data-shared
+spec:
+  type: git
+  params:
+    - name: url
+      value: ssh://git@git.l21d31708530003.local:22022/LAB.l21d31708530003/lab-static-data-shared.git
+    - name: revision
+      value: develop
+---
+apiVersion: tekton.dev/v1alpha1
+kind: PipelineResource
+metadata:
+  name: git-lab-static-data
+spec:
+  type: git
+  params:
+    - name: url
+      value: ssh://git@git.l21d31708530003.local:22022/LAB.l21d31708530003/lab-static-data.git
+    - name: revision
+      value: develop

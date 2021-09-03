@@ -6,8 +6,11 @@ metadata:
 spec:
   serviceAccountName: pipeline
   triggers:
-    - name: tekton-greeter-webhook
+    - name: gitea-trigger
+      # interceptors:
+      # - cel:
+      #     filter: "body.ref == 'refs/heads/develop'"
       bindings:
         - ref: gitea-triggerbinding
       template:
-        name: tekton-greeter-trigger-template
+        ref: test-trigger-template

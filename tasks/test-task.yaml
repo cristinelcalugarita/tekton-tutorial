@@ -1,0 +1,17 @@
+apiVersion: tekton.dev/v1beta1
+kind: Task
+metadata:
+  name: task-check-optional-resources
+spec:
+  resources:
+    inputs:
+      - name: git-repo
+        type: git
+        optional: true
+  steps:
+    - name: test
+      image: bitnami/minideb
+      command: ["bash"]
+      args:
+        - "-c"
+        - ls -la /workspace/git-repo

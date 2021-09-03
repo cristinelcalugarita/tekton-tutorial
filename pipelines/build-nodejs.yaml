@@ -1,0 +1,112 @@
+apiVersion: tekton.dev/v1beta1
+kind: Pipeline
+metadata:
+  name: build-nodejs
+spec:
+  params:
+    - name: url
+      description: app code git url 
+    - name: IMAGE
+      description: nexus docker image full path
+    - name: CONTEXT_DIR
+      description: source code build path
+      default: standalone
+      type: string
+    - name: CONTEXT
+      description: file check path
+      default: "."
+      type: string
+    - name: revision
+      description: tag,branch,commit_number
+      type: string
+      default: develop
+    - name: SERVICE_NAME
+      description: service name == deployment name
+      default: changeme
+    - name: CHART_CONTEXT_DIR
+      default: charts/limits-template-nodejs
+  workspaces:
+    - name: source
+      description: pvc provided as shared workspace between tasks
+  tasks:
+    - name: get-code
+      taskRef:
+        name: git-clone
+      params:
+        - name: url
+          value: "$(params.url)"
+        - name: revision
+          value: "$(params.revision)"
+      workspaces:
+        - name: source
+          workspace: source
+    - name: npm-build-app
+      taskRef:
+        name: npm
+      runAfter:
+        - get-code
+      workspaces:
+        - name: source
+          workspace: source
+      params:
+        - name: CONTEXT_DIR
+          value: $(params.CONTEXT_DIR)
+    - name: dockerfile-check
+      taskRef:
+        name: file-check
+      params:
+        - name: CONTEXT
+          value: "$(params.CONTEXT)"
+      runAfter:
+        - get-code
+      workspaces:
+        - name: source
+          workspace: source
+    - name: get-build-id
+      # when:
+      #   - input: "$(params.CONTEXT_DIR)"
+      #     operator: in
+      #     values: ["package.json"]
+      taskRef:
+        name: generate-build-id-check
+      runAfter:
+        - get-code
+      params:
+        - name: CONTEXT_DIR
+          value: "$(params.CONTEXT_DIR)"
+      workspaces:
+        - name: source
+          workspace: source
+    - name: build-docker-image
+      taskRef: 
+        name: buildah
+      runAfter:
+        - npm-build-app
+      params:
+        - name: IMAGE
+          value: "$(params.IMAGE):$(tasks.get-build-id.results.build-id)"
+      workspaces:
+        - name: source
+          workspace: source
+    - name: create-helm-chart
+      # when:
+      #   - input: "$(params.CONTEXT_DIR)"
+      #     operator: in
+      #     values: ["package.json"]
+      taskRef:
+        name: helm
+      runAfter:
+        - build-docker-image
+      params:
+        - name: IMAGE
+          value: "$(params.IMAGE)"
+        - name: TAG
+          value: "$(tasks.get-build-id.results.build-id)"
+        - name: SERVICE_NAME
+          value: "$(params.SERVICE_NAME)"
+        - name: CHART_CONTEXT_DIR
+          value: "$(params.CHART_CONTEXT_DIR)"
+      workspaces:
+        - name: source
+          workspace: source
+

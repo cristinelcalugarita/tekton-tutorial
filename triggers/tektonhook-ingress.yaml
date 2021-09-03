@@ -1,0 +1,17 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: el-gitea-webhook
+  namespace: tekton-pipelines
+spec:
+  rules:
+  - host: tektonhook.l21d31708530003.local
+    http:
+      paths:
+      - backend:
+          service:
+            name: el-gitea-webhook
+            port:
+              number: 8080
+        path: /
+        pathType: Exact

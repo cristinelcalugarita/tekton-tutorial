@@ -1,0 +1,75 @@
+tkn task start git-clone \
+  --param url=ssh://git@git.l21d31708530003.local:22022/LAB.l21d31708530003/lab-perimeters-manager.git \
+  --param revision=develop \
+  --param deleteExisting=true \
+  --workspace name=source,claimName=pipeline-pvc \
+  --use-param-defaults \
+  --serviceaccount pipeline \
+  --showlog
+
+
+tkn task start maven \
+  --param GOALS='clean,install' \
+  --workspace name=maven-settings,config=maven-settings \
+  --workspace name=source,claimName=pipeline-pvc \
+  --param CONTEXT_DIR=standalone \
+  --use-param-defaults \
+  --showlog
+
+
+  --param CONTEXT_DIR=shared \
+  --param CONTEXT_DIR=standalone \
+
+    --param GOALS='-DskipTests,clean,install' \
+
+tkn task start generate-build-id-copy \
+  --showlog \
+  --workspace name=source,claimName=pipeline-pvc \
+  --param CONTEXT_DIR=standalone
+
+tkn task start buildah \
+  --showlog \
+  --workspace name=source,claimName=pipeline-pvc \
+  --serviceaccount pipeline \
+  --use-param-defaults
+
+
+
+tkn task start git-clone \
+  --param url=ssh://git@git.l21d31708530003.local:22022/LAB.l21d31708530003/lab-frontend.git \
+  --param revision=develop \
+  --param deleteExisting=true \
+  --workspace name=source,claimName=pipeline-pvc \
+  --use-param-defaults \
+  --serviceaccount pipeline \
+  --showlog
+
+tkn task start npm \
+  --serviceaccount pipeline \
+  --workspace name=source,claimName=pipeline-pvc \
+  --param ARGS=install,-g,npm-install-peers \
+  --showlog \
+  --use-param-defaults
+
+tkn task start npm \
+  --serviceaccount pipeline \
+  --workspace name=source,claimName=pipeline-pvc \
+  --param ARGS=install \
+  --showlog \
+  --use-param-defaults
+
+tkn task start git-clone \
+  --param url=ssh://git@git.l21d31708530003.local:22022/LAB.l21d31708530003/lab-devops.git \
+  --param revision=develop \
+  --param deleteExisting=true \
+  --workspace name=source,claimName=pipeline-pvc \
+  --use-param-defaults \
+  --serviceaccount pipeline \
+  --showlog
+
+tkn task start newman-new \
+  --param COLLECTION=folm-postman-collection.json \
+  --workspace name=source,claimName=pipeline-pvc \
+  --serviceaccount pipeline \
+  --use-param-defaults \
+  --showlog

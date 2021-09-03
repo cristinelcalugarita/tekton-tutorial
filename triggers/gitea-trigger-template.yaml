@@ -1,0 +1,49 @@
+---
+apiVersion: triggers.tekton.dev/v1alpha1
+kind: TriggerTemplate
+metadata:
+  name: test-trigger-template
+spec:
+  params:
+    - name: servicename
+      description: servicename == git repo name == SER
+    - name: gitrevision
+      description: The git revision
+    - name: gitrepositoryurl
+      description: The git repository url
+  resourcetemplates:
+    - apiVersion: tekton.dev/v1beta1
+      kind: PipelineRun
+      metadata:
+        generateName: build-$(tt.params.servicename)-run-
+        labels:
+          tekton.dev/pipeline: build-pipeline
+      spec:
+        serviceAccountName: pipeline
+        pipelineRef:
+          name: build-pipeline-test0
+        params:
+        # - name: CHART_CONTEXT_DIR
+        #   value: charts/limits-template-nodejs
+        - name: revision
+          value: '$(tt.params.gitrevision)'
+        - name: url
+          value: '$(tt.params.gitrepositoryurl)'
+        - name: IMAGE
+          value: nexus.l21d31708530003.local:5000/'$(tt.params.servicename)'
+        - name: SERVICE_NAME
+          value: '$(tt.params.servicename)'
+        workspaces:
+          - name: maven-settings
+            configmap:
+              name: maven-settings
+          # - name: newman-env
+          #   configmap:
+          #     name: newman-env
+          - name: source
+            volumeClaimTemplate:
+              spec:
+                accessModes: ["ReadWriteOnce"]
+                resources:
+                  requests:
+                    storage: 1Gi

@@ -1,0 +1,23 @@
+apiVersion: tekton.dev/v1alpha1
+kind: PipelineResource
+metadata:
+  name: git-lab-perimeters-matcher
+spec:
+  type: git
+  params:
+    - name: url
+      value: ssh://git@git.l21d31708530003.local:22022/LAB.l21d31708530003/lab-perimeters-matcher.git
+    - name: revision
+      value: develop
+---
+apiVersion: tekton.dev/v1alpha1
+kind: PipelineResource
+metadata:
+  name: git-lab-perimeters-matcher-shared
+spec:
+  type: git
+  params:
+    - name: url
+      value: ssh://git@git.l21d31708530003.local:22022/LAB.l21d31708530003/lab-perimeters-matcher-shared.git
+    - name: revision
+      value: develop

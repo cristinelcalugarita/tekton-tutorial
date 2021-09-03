@@ -1,0 +1,44 @@
+apiVersion: tekton.dev/v1beta1
+kind: Task
+metadata:
+  name: newman
+spec:
+  description: |-
+    Task for running Postman api tests.
+    INFO: newman-env.json must be created as newman-env configMap before running the Task.
+  params:
+  - name: COLLECTION
+    description: The collection to run, remote URL or local PATH
+    type: string
+  - name: CLLECTION_DIR
+    description: postman collection location path
+    default: postman
+  - name: ENV_CM
+    description: ex newman-env configmap
+    default: "newman-env"
+  - name: ENV_FILE
+    description: envivronment file name
+    default: "newman-env.json"
+  workspaces:
+    - name: source
+  steps:
+    - name: run-collections
+      image: docker.io/postman/newman:latest
+      workingDir: "$(workspaces.source.path)/$(params.CLLECTION_DIR)"
+      command:
+        - newman
+      args:
+        - run
+        - $(inputs.params.COLLECTION)
+        - -e
+        - /config/$(inputs.params.ENV_FILE)
+        - --insecure
+        - -k
+        - --bail
+      volumeMounts:
+        - name: $(params.ENV_CM)
+          mountPath: /config
+  volumes:
+    - name: $(params.ENV_CM)
+      configMap:
+        name: $(params.ENV_CM)

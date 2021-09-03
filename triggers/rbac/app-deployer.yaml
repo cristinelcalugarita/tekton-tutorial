@@ -13,7 +13,8 @@ rules:
   - apiGroups: ['sources.knative.dev']
     resources: ['*']
     verbs: ['*']
-  - apiGroups: ['projectcontour.io']
+  # - apiGroups: ['projectcontour.io']
+  - apiGroups: ['traefik.containo.us']
     resources: ['*']
     verbs: ['*']
   - apiGroups:

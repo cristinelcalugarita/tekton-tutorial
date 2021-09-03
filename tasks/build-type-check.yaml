@@ -1,0 +1,61 @@
+apiVersion: tekton.dev/v1beta1
+kind: Task
+metadata:
+  name: build-type-check
+spec:
+  params: 
+    - name: CONTEXT
+      default: "."
+      type: string
+  workspaces:
+    - name: source
+      description: project code
+  results:
+    - name: standalone-check
+      description: check if true springboot repo
+    - name: shared-check
+      description: check if true shared repo
+    - name: library-check
+      description: check if true library repo
+    - name: nodejs-check
+      description: check if true nodejs repo
+    - name: chart-template
+      description: chart-template nodejs or springboot
+  steps:
+    - name: springboot-check
+      image: alpine
+      workingDir: "$(workspaces.source.path)/$(params.CONTEXT)"
+      script: |
+        #!/usr/bin/env sh
+        set -x
+        if test -d "$(workspaces.source.path)/$(params.CONTEXT)/standalone"; then
+          printf standalone | tee "$(results.standalone-check.path)" && printf charts/limits-template-novault > "$(results.chart-template.path)"
+        else
+          printf no | tee "$(results.standalone-check.path)"
+        fi
+    - name: library-check
+      image: alpine
+      workingDir: "$(workspaces.source.path)/$(params.CONTEXT)"
+      script: |
+        #!/usr/bin/env sh
+        set -x
+        if test -d "$(workspaces.source.path)/$(params.CONTEXT)/shared"; then
+          printf shared | tee "$(results.shared-check.path)"
+        else
+          if test -f "$(workspaces.source.path)/$(params.CONTEXT)/pom.xml"; then
+            printf . | tee "$(results.shared-check.path)"
+          else
+            printf no | tee "$(results.shared-check.path)"
+          fi
+        fi
+    - name: nodejs-check
+      image: alpine
+      workingDir: "$(workspaces.source.path)/$(params.CONTEXT)"
+      script: |
+        #!/usr/bin/env sh
+        set -x
+        if test -f "$(workspaces.source.path)/$(params.CONTEXT)/package.json"; then
+          printf . | tee "$(results.nodejs-check.path)" && printf charts/limits-template-nodejs > "$(results.chart-template.path)"
+        else
+          printf no | tee "$(results.nodejs-check.path)"
+        fi

@@ -1,0 +1,27 @@
+apiVersion: tekton.dev/v1beta1
+kind: PipelineRun
+metadata:
+  generateName: build-lab-frontend-run-
+spec:
+  serviceAccountName: pipeline
+  pipelineRef:
+    name: build-nodejs
+  workspaces:
+    - name: source
+      volumeClaimTemplate:
+        spec:
+          accessModes: ["ReadWriteOnce"]
+          resources:
+            requests:
+              storage: 1Gi
+  params:
+    - name: CONTEXT_DIR
+      value: .
+    - name: revision
+      value: develop
+    - name: url
+      value: ssh://git@git.l21d31708530003.local:22022/LAB.l21d31708530003/lab-frontend.git
+    - name: IMAGE
+      value: nexus.l21d31708530003.local:5000/lab-frontend
+    - name: SERVICE_NAME
+      value: lab-frontend

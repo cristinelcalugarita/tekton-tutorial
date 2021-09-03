@@ -1,0 +1,32 @@
+apiVersion: tekton.dev/v1beta1
+kind: Task
+metadata:
+  name: cleanup
+spec:
+  params:
+    - name: PROJ_TMP_NS
+      default: limits-tmp
+    - name: HELM_IMAGE
+      default: nexus.l21d31708530003.local:5000/helm:alpine-slim
+    - name: SERVICE_NAME
+  workspaces:
+    - name: source
+  results:
+    - name: helm-push
+      description: helm push information
+  steps:
+    - name: helm-uninstall
+      image: $(params.HELM_IMAGE)
+      script: |
+        #!/usr/bin/env bash
+        set -e
+        printf "Uninstall Helm Charts from temporary Namespace \n"
+        helm -n $(params.PROJ_TMP_NS) uninstall $(params.SERVICE_NAME)
+    - name: other-steps
+      image: alpine
+      script: |
+        #!/usr/bin/env sh
+        set -e
+        printf "TBC !!! \n"
+
+        

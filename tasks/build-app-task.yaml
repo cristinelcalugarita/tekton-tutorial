@@ -13,7 +13,7 @@ spec:
       default: https://repo.maven.apache.org/maven2/
     - name: destinationImage
       description: the fully qualified image name
-      default: "$(outputs.resources.builtImage.url)"
+      default: "$(outputs.resources.builtImage.url):$(outputs.results.build-id)"
     - name: dockerFile
       description: the docker file to used for building the application
       default: Dockerfile
@@ -28,6 +28,14 @@ spec:
     outputs:
       - name: builtImage
         type: image
+  workspaces:
+    - name: maven-settings
+    # - name: source
+  # results:
+  #   - name: timestamp
+  #     description: Current timestamp
+  #   - name: build-id
+  #     description: ID of the current build
   steps:
     - name: build-sources
       image: docker.io/maven:3.6.3-openjdk-11-slim
@@ -35,15 +43,35 @@ spec:
       command:
         - mvn
       args:
+        - -s
+        - $(workspaces.maven-settings.path)/settings.xml
         - -DskipTests
         - clean
-        - package
+        # - package
+        - install
       env:
         - name: user.home
           value: /home/tekton
-    - name: build-image
-      image: quay.io/buildah/stable
+    - name: get-timestamp
+      image: bitnami/minideb
+      script: |
+        #!/usr/bin/env bash
+        ts=`date "+%Y%m%d%H%M"`
+        echo "Current Timestamp: ${ts}"
+        echo ${ts} | tr -d "\n" | tee $(results.timestamp.path)
+    - name: get-buildid
+      image: bitnami/minideb
       workingDir: "/workspace/source/$(inputs.params.contextDir)"
+      script: |
+        #!/usr/bin/env bash
+        ts=`cat $(results.timestamp.path)`
+        buildId=$(grep -A2 com.finastr pom.xml |grep -o -P '(?<=<version>).*(?=\-SNAPSHOT</version>)')-${ts}
+        echo ${buildId} | tr -d "\n" | tee $(results.build-id.path)
+    - name: build-image
+      # image: quay.io/buildah/stable
+      image: buildah/buildah
+      # workingDir: "/workspace/source/$(inputs.params.contextDir)"
+      workingDir: "/workspace/source/"
       command:
         - "buildah"
       args:
@@ -61,14 +89,14 @@ spec:
         - name: varlibc
           mountPath: /var/lib/containers
     - name: push-image
-      image: quay.io/buildah/stable
-      workingDir: "/workspace/source/$(inputs.params.contextDir)"
+      image: buildah/buildah
+      workingDir: "/workspace/source/"
       command:
         - "buildah"
       args:
         - "push"
         - "--tls-verify=$(inputs.params.tlsVerify)"
-        - $(inputs.params.destinationImage)
+        - "$(inputs.params.destinationImage)"
         - "docker://$(inputs.params.destinationImage)"
       securityContext:
         runAsUser: 0
@@ -76,6 +104,14 @@ spec:
       volumeMounts:
         - name: varlibc
           mountPath: /var/lib/containers
+    - name: clean-up
+      image: nexus.l21d31708530003.local:5000/minideb
+      workingDir: "/workspace/source/"
+      command:
+        - "bash"
+      args:
+        - "-c"
+        - ls -A1 | xargs rm -rf
   volumes:
     - name: varlibc
       emptyDir: {}

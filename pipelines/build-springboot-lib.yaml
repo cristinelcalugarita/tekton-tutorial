@@ -1,0 +1,64 @@
+apiVersion: tekton.dev/v1beta1
+kind: Pipeline
+metadata:
+  name: build-springboot-lib
+spec:
+  params:
+    - name: url
+    - name: IMAGE
+    - name: GOALS
+      default: '-DskipTests,clean,deploy'
+      description: maven goals - clean, install
+    - name: CONTEXT_DIR
+      default: standalone
+    - name: revision
+      default: develop
+  workspaces:
+    - name: maven-settings
+    - name: source
+  tasks:
+    - name: get-code
+      taskRef:
+        name: git-clone
+      params:
+        - name: url
+          value: "$(params.url)"
+      workspaces:
+        - name: source
+          workspace: source
+    - name: maven-build
+      taskRef:
+        name: maven
+      runAfter:
+        - get-code
+      workspaces:
+        - name: source
+          workspace: source
+        - name: maven-settings
+          workspace: maven-settings
+      params:
+        - name: CONTEXT_DIR
+          value: $(params.CONTEXT_DIR)
+    - name: get-build-id
+      taskRef:
+        name: generate-build-id-copy
+      runAfter:
+        - maven-build
+      params:
+        - name: CONTEXT_DIR
+          value: "$(params.CONTEXT_DIR)"
+      workspaces:
+        - name: source
+          workspace: source
+    - name: buuild-docker-image
+      taskRef: 
+        name: buildah
+      runAfter:
+        - get-build-id
+      params:
+        - name: IMAGE
+          value: "$(params.IMAGE):$(tasks.get-build-id.results.build-id)"
+      workspaces:
+        - name: source
+          workspace: source
+

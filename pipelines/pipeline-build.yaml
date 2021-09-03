@@ -1,30 +1,30 @@
 apiVersion: tekton.dev/v1beta1
 kind: Pipeline
 metadata:
-  name: svc-deploy
+  name: build
 spec:
   params:
-    - name: contextDir
+    - name: CONTEXT_DIR
       description: the context directory from where to build the application
   resources:
     - name: appSource
       type: git
-    - name: appImage
-      type: image
+    # - name: appImage
+    #   type: image
   tasks:
-    - name: build-java-app
+    - name: maven-build
       taskRef:
-        name: build-app
+        name: maven
       params:
-        - name: contextDir
-          value: $(params.contextDir)
+        - name: CONTEXT_DIR
+          value: $(params.CONTEXT_DIR)
       resources:
         inputs:
           - name: source
             resource: appSource
-        outputs:
-          - name: builtImage
-            resource: appImage
+        # outputs:
+        #   - name: builtImage
+        #     resource: appImage
     # - name: deploy-kubernetes-service
     #   taskRef:
     #     name: openshift-client

@@ -1,0 +1,30 @@
+apiVersion: tekton.dev/v1beta1
+kind: PipelineRun
+metadata:
+  generateName: build-lab-perimeters-matcher-run-
+spec:
+  serviceAccountName: pipeline
+  pipelineRef:
+    name: build-springboot
+  workspaces:
+    - name: source
+      volumeClaimTemplate:
+        spec:
+          accessModes: ["ReadWriteOnce"]
+          resources:
+            requests:
+              storage: 1Gi
+    - name: maven-settings
+      configMap:
+        name: maven-settings
+  params:
+    - name: CONTEXT_DIR
+      value: standalone
+    - name: revision
+      value: develop
+    - name: url
+      value: ssh://git@git.l21d31708530003.local:22022/LAB.l21d31708530003/lab-perimeters-matcher.git
+    - name: IMAGE
+      value: nexus.l21d31708530003.local:5000/lab-perimeters-matcher
+    - name: SERVICE_NAME
+      value: lab-perimeters-matcher

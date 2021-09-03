@@ -5,7 +5,9 @@ metadata:
   name: gitea-triggerbinding
 spec:
   params:
+    - name: servicename
+      value: $(body.repository.name)
     - name: gitrevision
-      value: $(body.after)
+      value: $(body.ref)
     - name: gitrepositoryurl
       value: $(body.repository.clone_url)
