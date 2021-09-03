@@ -1,0 +1,1052 @@
+apiVersion: v1
+items:
+- apiVersion: tekton.dev/v1beta1
+  kind: Pipeline
+  metadata:
+    annotations:
+      kubectl.kubernetes.io/last-applied-configuration: |
+        {"apiVersion":"tekton.dev/v1beta1","kind":"Pipeline","metadata":{"annotations":{},"name":"build","namespace":"tekton-pipelines"},"spec":{"params":[{"description":"the context directory from where to build the application","name":"CONTEXT_DIR"}],"resources":[{"name":"appSource","type":"git"}],"tasks":[{"name":"maven-build","params":[{"name":"CONTEXT_DIR","value":"$(params.CONTEXT_DIR)"}],"resources":{"inputs":[{"name":"source","resource":"appSource"}]},"taskRef":{"name":"maven"}}]}}
+    creationTimestamp: "2021-07-08T11:57:54Z"
+    generation: 2
+    name: build
+    namespace: tekton-pipelines
+    resourceVersion: "24210658"
+    uid: c5806ebf-b74a-4d19-b5aa-089916bdbd11
+  spec:
+    params:
+    - description: the context directory from where to build the application
+      name: CONTEXT_DIR
+      type: string
+    resources:
+    - name: appSource
+      type: git
+    tasks:
+    - name: maven-build
+      params:
+      - name: CONTEXT_DIR
+        value: $(params.CONTEXT_DIR)
+      resources:
+        inputs:
+        - name: source
+          resource: appSource
+      taskRef:
+        kind: Task
+        name: maven
+- apiVersion: tekton.dev/v1beta1
+  kind: Pipeline
+  metadata:
+    annotations:
+      kubectl.kubernetes.io/last-applied-configuration: |
+        {"apiVersion":"tekton.dev/v1beta1","kind":"Pipeline","metadata":{"annotations":{},"name":"build-nodejs","namespace":"tekton-pipelines"},"spec":{"params":[{"description":"app code git url","name":"url"},{"description":"nexus docker image full path","name":"IMAGE"},{"default":"standalone","description":"source code build path","name":"CONTEXT_DIR","type":"string"},{"default":".","description":"file check path","name":"CONTEXT","type":"string"},{"default":"develop","description":"tag,branch,commit_number","name":"revision","type":"string"},{"default":"changeme","description":"service name == deployment name","name":"SERVICE_NAME"},{"default":"charts/limits-template-nodejs","name":"CHART_CONTEXT_DIR"}],"tasks":[{"name":"get-code","params":[{"name":"url","value":"$(params.url)"},{"name":"revision","value":"$(params.revision)"}],"taskRef":{"name":"git-clone"},"workspaces":[{"name":"source","workspace":"source"}]},{"name":"npm-build-app","params":[{"name":"CONTEXT_DIR","value":"$(params.CONTEXT_DIR)"}],"runAfter":["get-code"],"taskRef":{"name":"npm"},"workspaces":[{"name":"source","workspace":"source"}]},{"name":"dockerfile-check","params":[{"name":"CONTEXT","value":"$(params.CONTEXT)"}],"runAfter":["get-code"],"taskRef":{"name":"file-check"},"workspaces":[{"name":"source","workspace":"source"}]},{"name":"get-build-id","params":[{"name":"CONTEXT_DIR","value":"$(params.CONTEXT_DIR)"}],"runAfter":["get-code"],"taskRef":{"name":"generate-build-id-check"},"workspaces":[{"name":"source","workspace":"source"}]},{"name":"build-docker-image","params":[{"name":"IMAGE","value":"$(params.IMAGE):$(tasks.get-build-id.results.build-id)"}],"runAfter":["npm-build-app"],"taskRef":{"name":"buildah"},"workspaces":[{"name":"source","workspace":"source"}]},{"name":"create-helm-chart","params":[{"name":"IMAGE","value":"$(params.IMAGE)"},{"name":"TAG","value":"$(tasks.get-build-id.results.build-id)"},{"name":"SERVICE_NAME","value":"$(params.SERVICE_NAME)"},{"name":"CHART_CONTEXT_DIR","value":"$(params.CHART_CONTEXT_DIR)"}],"runAfter":["build-docker-image"],"taskRef":{"name":"helm"},"workspaces":[{"name":"source","workspace":"source"}]}],"workspaces":[{"description":"pvc provided as shared workspace between tasks","name":"source"}]}}
+    creationTimestamp: "2021-07-21T17:58:07Z"
+    generation: 6
+    name: build-nodejs
+    namespace: tekton-pipelines
+    resourceVersion: "35584690"
+    uid: c59a7797-c47e-45c4-b876-322a52a43b2a
+  spec:
+    params:
+    - description: app code git url
+      name: url
+      type: string
+    - description: nexus docker image full path
+      name: IMAGE
+      type: string
+    - default: standalone
+      description: source code build path
+      name: CONTEXT_DIR
+      type: string
+    - default: .
+      description: file check path
+      name: CONTEXT
+      type: string
+    - default: develop
+      description: tag,branch,commit_number
+      name: revision
+      type: string
+    - default: changeme
+      description: service name == deployment name
+      name: SERVICE_NAME
+      type: string
+    - default: charts/limits-template-nodejs
+      name: CHART_CONTEXT_DIR
+      type: string
+    tasks:
+    - name: get-code
+      params:
+      - name: url
+        value: $(params.url)
+      - name: revision
+        value: $(params.revision)
+      taskRef:
+        kind: Task
+        name: git-clone
+      workspaces:
+      - name: source
+        workspace: source
+    - name: npm-build-app
+      params:
+      - name: CONTEXT_DIR
+        value: $(params.CONTEXT_DIR)
+      runAfter:
+      - get-code
+      taskRef:
+        kind: Task
+        name: npm
+      workspaces:
+      - name: source
+        workspace: source
+    - name: dockerfile-check
+      params:
+      - name: CONTEXT
+        value: $(params.CONTEXT)
+      runAfter:
+      - get-code
+      taskRef:
+        kind: Task
+        name: file-check
+      workspaces:
+      - name: source
+        workspace: source
+    - name: get-build-id
+      params:
+      - name: CONTEXT_DIR
+        value: $(params.CONTEXT_DIR)
+      runAfter:
+      - get-code
+      taskRef:
+        kind: Task
+        name: generate-build-id-check
+      workspaces:
+      - name: source
+        workspace: source
+    - name: build-docker-image
+      params:
+      - name: IMAGE
+        value: $(params.IMAGE):$(tasks.get-build-id.results.build-id)
+      runAfter:
+      - npm-build-app
+      taskRef:
+        kind: Task
+        name: buildah
+      workspaces:
+      - name: source
+        workspace: source
+    - name: create-helm-chart
+      params:
+      - name: IMAGE
+        value: $(params.IMAGE)
+      - name: TAG
+        value: $(tasks.get-build-id.results.build-id)
+      - name: SERVICE_NAME
+        value: $(params.SERVICE_NAME)
+      - name: CHART_CONTEXT_DIR
+        value: $(params.CHART_CONTEXT_DIR)
+      runAfter:
+      - build-docker-image
+      taskRef:
+        kind: Task
+        name: helm
+      workspaces:
+      - name: source
+        workspace: source
+    workspaces:
+    - description: pvc provided as shared workspace between tasks
+      name: source
+- apiVersion: tekton.dev/v1beta1
+  kind: Pipeline
+  metadata:
+    annotations:
+      kubectl.kubernetes.io/last-applied-configuration: |
+        {"apiVersion":"tekton.dev/v1beta1","kind":"Pipeline","metadata":{"annotations":{},"name":"build-pipeline","namespace":"tekton-pipelines"},"spec":{"params":[{"description":"app code git url","name":"url"},{"description":"nexus docker image full path","name":"IMAGE"},{"default":".","description":"file check path","name":"CONTEXT","type":"string"},{"default":"develop","description":"tag,branch,commit_number","name":"revision","type":"string"},{"default":"changeme","description":"service name == deployment name","name":"SERVICE_NAME"}],"tasks":[{"name":"get-code","params":[{"name":"url","value":"$(params.url)"},{"name":"revision","value":"$(params.revision)"}],"taskRef":{"name":"git-clone"},"workspaces":[{"name":"source","workspace":"source"}]},{"name":"build-type-check","params":[{"name":"CONTEXT","value":"$(params.CONTEXT)"}],"runAfter":["get-code"],"taskRef":{"name":"build-type-check"},"workspaces":[{"name":"source","workspace":"source"}]},{"name":"maven-build-lib","params":[{"name":"CONTEXT_DIR","value":"$(tasks.build-type-check.results.shared-check)"},{"name":"GOALS","value":["-DskipTests","deploy"]}],"runAfter":["build-type-check"],"taskRef":{"name":"maven"},"when":[{"input":"$(tasks.build-type-check.results.shared-check)","operator":"in","values":["shared","."]}],"workspaces":[{"name":"source","workspace":"source"},{"name":"maven-settings","workspace":"maven-settings"}]},{"name":"maven-build-app","params":[{"name":"CONTEXT_DIR","value":"$(tasks.build-type-check.results.standalone-check)"},{"name":"GOALS","value":["-DskipTests","clean","install"]}],"runAfter":["build-type-check"],"taskRef":{"name":"maven"},"when":[{"input":"$(tasks.build-type-check.results.standalone-check)","operator":"in","values":["standalone"]}],"workspaces":[{"name":"source","workspace":"source"},{"name":"maven-settings","workspace":"maven-settings"}]},{"name":"npm-build-app","params":[{"name":"CONTEXT_DIR","value":"$(tasks.build-type-check.results.nodejs-check)"}],"runAfter":["get-code"],"taskRef":{"name":"npm"},"when":[{"input":"$(tasks.build-type-check.results.nodejs-check)","operator":"in","values":["."]}],"workspaces":[{"name":"source","workspace":"source"}]},{"name":"maven-build-id","params":[{"name":"CONTEXT_DIR","value":"$(tasks.build-type-check.results.standalone-check)"}],"runAfter":["maven-build-app"],"taskRef":{"name":"generate-build-id-check"},"when":[{"input":"$(tasks.build-type-check.results.standalone-check)","operator":"in","values":["standalone"]}],"workspaces":[{"name":"source","workspace":"source"}]},{"name":"nodejs-build-id","params":[{"name":"CONTEXT_DIR","value":"$(tasks.build-type-check.results.nodejs-check)"}],"runAfter":["npm-build-app"],"taskRef":{"name":"generate-build-id-check"},"when":[{"input":"$(tasks.build-type-check.results.nodejs-check)","operator":"in","values":["."]}],"workspaces":[{"name":"source","workspace":"source"}]},{"name":"build-spring-docker-image","params":[{"name":"IMAGE","value":"$(params.IMAGE):$(tasks.maven-build-id.results.build-id)"}],"runAfter":["maven-build-id"],"taskRef":{"name":"buildah"},"workspaces":[{"name":"source","workspace":"source"}]},{"name":"build-nodejs-docker-image","params":[{"name":"IMAGE","value":"$(params.IMAGE):$(tasks.nodejs-build-id.results.build-id)"}],"runAfter":["nodejs-build-id"],"taskRef":{"name":"buildah"},"workspaces":[{"name":"source","workspace":"source"}]},{"name":"create-springboot-helm-chart","params":[{"name":"IMAGE","value":"$(params.IMAGE)"},{"name":"TAG","value":"$(tasks.maven-build-id.results.build-id)"},{"name":"SERVICE_NAME","value":"$(params.SERVICE_NAME)"}],"runAfter":["build-spring-docker-image"],"taskRef":{"name":"helm"},"when":[{"input":"$(tasks.build-type-check.results.standalone-check)","operator":"in","values":["standalone"]}],"workspaces":[{"name":"source","workspace":"source"}]},{"name":"create-nodejs-helm-chart","params":[{"name":"IMAGE","value":"$(params.IMAGE)"},{"name":"TAG","value":"$(tasks.nodejs-build-id.results.build-id)"},{"name":"SERVICE_NAME","value":"$(params.SERVICE_NAME)"},{"name":"CHART_CONTEXT_DIR","value":"$(tasks.build-type-check.results.chart-template)"}],"runAfter":["build-nodejs-docker-image"],"taskRef":{"name":"helm"},"when":[{"input":"$(tasks.build-type-check.results.nodejs-check)","operator":"in","values":["."]}],"workspaces":[{"name":"source","workspace":"source"}]}],"workspaces":[{"description":"maven settings provided as configMap","name":"maven-settings"},{"description":"pvc provided as shared workspace between tasks","name":"source"}]}}
+    creationTimestamp: "2021-07-29T18:00:42Z"
+    generation: 51
+    name: build-pipeline
+    namespace: tekton-pipelines
+    resourceVersion: "42457113"
+    uid: d5d5a948-e1a2-4a7c-bb2a-7b775dc8c7da
+  spec:
+    params:
+    - description: app code git url
+      name: url
+      type: string
+    - description: nexus docker image full path
+      name: IMAGE
+      type: string
+    - default: .
+      description: file check path
+      name: CONTEXT
+      type: string
+    - default: develop
+      description: tag,branch,commit_number
+      name: revision
+      type: string
+    - default: changeme
+      description: service name == deployment name
+      name: SERVICE_NAME
+      type: string
+    tasks:
+    - name: get-code
+      params:
+      - name: url
+        value: $(params.url)
+      - name: revision
+        value: $(params.revision)
+      taskRef:
+        kind: Task
+        name: git-clone
+      workspaces:
+      - name: source
+        workspace: source
+    - name: build-type-check
+      params:
+      - name: CONTEXT
+        value: $(params.CONTEXT)
+      runAfter:
+      - get-code
+      taskRef:
+        kind: Task
+        name: build-type-check
+      workspaces:
+      - name: source
+        workspace: source
+    - name: maven-build-lib
+      params:
+      - name: CONTEXT_DIR
+        value: $(tasks.build-type-check.results.shared-check)
+      - name: GOALS
+        value:
+        - -DskipTests
+        - deploy
+      runAfter:
+      - build-type-check
+      taskRef:
+        kind: Task
+        name: maven
+      when:
+      - input: $(tasks.build-type-check.results.shared-check)
+        operator: in
+        values:
+        - shared
+        - .
+      workspaces:
+      - name: source
+        workspace: source
+      - name: maven-settings
+        workspace: maven-settings
+    - name: maven-build-app
+      params:
+      - name: CONTEXT_DIR
+        value: $(tasks.build-type-check.results.standalone-check)
+      - name: GOALS
+        value:
+        - -DskipTests
+        - clean
+        - install
+      runAfter:
+      - build-type-check
+      taskRef:
+        kind: Task
+        name: maven
+      when:
+      - input: $(tasks.build-type-check.results.standalone-check)
+        operator: in
+        values:
+        - standalone
+      workspaces:
+      - name: source
+        workspace: source
+      - name: maven-settings
+        workspace: maven-settings
+    - name: npm-build-app
+      params:
+      - name: CONTEXT_DIR
+        value: $(tasks.build-type-check.results.nodejs-check)
+      runAfter:
+      - get-code
+      taskRef:
+        kind: Task
+        name: npm
+      when:
+      - input: $(tasks.build-type-check.results.nodejs-check)
+        operator: in
+        values:
+        - .
+      workspaces:
+      - name: source
+        workspace: source
+    - name: maven-build-id
+      params:
+      - name: CONTEXT_DIR
+        value: $(tasks.build-type-check.results.standalone-check)
+      runAfter:
+      - maven-build-app
+      taskRef:
+        kind: Task
+        name: generate-build-id-check
+      when:
+      - input: $(tasks.build-type-check.results.standalone-check)
+        operator: in
+        values:
+        - standalone
+      workspaces:
+      - name: source
+        workspace: source
+    - name: nodejs-build-id
+      params:
+      - name: CONTEXT_DIR
+        value: $(tasks.build-type-check.results.nodejs-check)
+      runAfter:
+      - npm-build-app
+      taskRef:
+        kind: Task
+        name: generate-build-id-check
+      when:
+      - input: $(tasks.build-type-check.results.nodejs-check)
+        operator: in
+        values:
+        - .
+      workspaces:
+      - name: source
+        workspace: source
+    - name: build-spring-docker-image
+      params:
+      - name: IMAGE
+        value: $(params.IMAGE):$(tasks.maven-build-id.results.build-id)
+      runAfter:
+      - maven-build-id
+      taskRef:
+        kind: Task
+        name: buildah
+      workspaces:
+      - name: source
+        workspace: source
+    - name: build-nodejs-docker-image
+      params:
+      - name: IMAGE
+        value: $(params.IMAGE):$(tasks.nodejs-build-id.results.build-id)
+      runAfter:
+      - nodejs-build-id
+      taskRef:
+        kind: Task
+        name: buildah
+      workspaces:
+      - name: source
+        workspace: source
+    - name: create-springboot-helm-chart
+      params:
+      - name: IMAGE
+        value: $(params.IMAGE)
+      - name: TAG
+        value: $(tasks.maven-build-id.results.build-id)
+      - name: SERVICE_NAME
+        value: $(params.SERVICE_NAME)
+      runAfter:
+      - build-spring-docker-image
+      taskRef:
+        kind: Task
+        name: helm
+      when:
+      - input: $(tasks.build-type-check.results.standalone-check)
+        operator: in
+        values:
+        - standalone
+      workspaces:
+      - name: source
+        workspace: source
+    - name: create-nodejs-helm-chart
+      params:
+      - name: IMAGE
+        value: $(params.IMAGE)
+      - name: TAG
+        value: $(tasks.nodejs-build-id.results.build-id)
+      - name: SERVICE_NAME
+        value: $(params.SERVICE_NAME)
+      - name: CHART_CONTEXT_DIR
+        value: $(tasks.build-type-check.results.chart-template)
+      runAfter:
+      - build-nodejs-docker-image
+      taskRef:
+        kind: Task
+        name: helm
+      when:
+      - input: $(tasks.build-type-check.results.nodejs-check)
+        operator: in
+        values:
+        - .
+      workspaces:
+      - name: source
+        workspace: source
+    workspaces:
+    - description: maven settings provided as configMap
+      name: maven-settings
+    - description: pvc provided as shared workspace between tasks
+      name: source
+- apiVersion: tekton.dev/v1beta1
+  kind: Pipeline
+  metadata:
+    annotations:
+      kubectl.kubernetes.io/last-applied-configuration: |
+        {"apiVersion":"tekton.dev/v1beta1","kind":"Pipeline","metadata":{"annotations":{},"name":"build-pipeline-test0","namespace":"tekton-pipelines"},"spec":{"finally":[{"name":"cleanup-tmp-ns","params":[{"name":"SERVICE_NAME","value":"$(params.SERVICE_NAME)"}],"taskRef":{"name":"cleanup"},"when":[{"input":"$(tasks.build-type-check.results.standalone-check)","operator":"in","values":["standalone"]}],"workspaces":[{"name":"source","workspace":"source"}]}],"params":[{"description":"app code git url","name":"url"},{"description":"nexus docker image full path","name":"IMAGE"},{"default":".","description":"file check path","name":"CONTEXT","type":"string"},{"default":"develop","description":"tag,branch,commit_number","name":"revision","type":"string"},{"default":"changeme","description":"service name == deployment name","name":"SERVICE_NAME"}],"tasks":[{"name":"get-code","params":[{"name":"url","value":"$(params.url)"},{"name":"revision","value":"$(params.revision)"}],"taskRef":{"name":"git-clone"},"workspaces":[{"name":"source","workspace":"source"}]},{"name":"build-type-check","params":[{"name":"CONTEXT","value":"$(params.CONTEXT)"}],"runAfter":["get-code"],"taskRef":{"name":"build-type-check"},"workspaces":[{"name":"source","workspace":"source"}]},{"name":"maven-build-lib","params":[{"name":"CONTEXT_DIR","value":"$(tasks.build-type-check.results.shared-check)"},{"name":"GOALS","value":["-DskipTests","deploy"]}],"runAfter":["build-type-check"],"taskRef":{"name":"maven"},"when":[{"input":"$(tasks.build-type-check.results.shared-check)","operator":"in","values":["shared","."]}],"workspaces":[{"name":"source","workspace":"source"},{"name":"maven-settings","workspace":"maven-settings"}]},{"name":"maven-build-app","params":[{"name":"CONTEXT_DIR","value":"$(tasks.build-type-check.results.standalone-check)"},{"name":"GOALS","value":["-DskipTests","clean","install"]}],"runAfter":["build-type-check"],"taskRef":{"name":"maven"},"when":[{"input":"$(tasks.build-type-check.results.standalone-check)","operator":"in","values":["standalone"]}],"workspaces":[{"name":"source","workspace":"source"},{"name":"maven-settings","workspace":"maven-settings"}]},{"name":"npm-build-app","params":[{"name":"CONTEXT_DIR","value":"$(tasks.build-type-check.results.nodejs-check)"}],"runAfter":["get-code"],"taskRef":{"name":"npm"},"when":[{"input":"$(tasks.build-type-check.results.nodejs-check)","operator":"in","values":["."]}],"workspaces":[{"name":"source","workspace":"source"}]},{"name":"maven-build-id","params":[{"name":"CONTEXT_DIR","value":"$(tasks.build-type-check.results.standalone-check)"}],"runAfter":["maven-build-app"],"taskRef":{"name":"generate-build-id-check"},"when":[{"input":"$(tasks.build-type-check.results.standalone-check)","operator":"in","values":["standalone"]}],"workspaces":[{"name":"source","workspace":"source"}]},{"name":"nodejs-build-id","params":[{"name":"CONTEXT_DIR","value":"$(tasks.build-type-check.results.nodejs-check)"}],"runAfter":["npm-build-app"],"taskRef":{"name":"generate-build-id-check"},"when":[{"input":"$(tasks.build-type-check.results.nodejs-check)","operator":"in","values":["."]}],"workspaces":[{"name":"source","workspace":"source"}]},{"name":"build-spring-docker-image","params":[{"name":"IMAGE","value":"$(params.IMAGE):$(tasks.maven-build-id.results.build-id)"}],"runAfter":["maven-build-id"],"taskRef":{"name":"buildah"},"workspaces":[{"name":"source","workspace":"source"}]},{"name":"build-nodejs-docker-image","params":[{"name":"IMAGE","value":"$(params.IMAGE):$(tasks.nodejs-build-id.results.build-id)"}],"runAfter":["nodejs-build-id"],"taskRef":{"name":"buildah"},"workspaces":[{"name":"source","workspace":"source"}]},{"name":"springboot-helm-chart","params":[{"name":"IMAGE","value":"$(params.IMAGE)"},{"name":"TAG","value":"$(tasks.maven-build-id.results.build-id)"},{"name":"SERVICE_NAME","value":"$(params.SERVICE_NAME)"}],"runAfter":["build-spring-docker-image"],"taskRef":{"name":"helm"},"when":[{"input":"$(tasks.build-type-check.results.standalone-check)","operator":"in","values":["standalone"]}],"workspaces":[{"name":"source","workspace":"source"}]},{"name":"nodejs-helm-chart","params":[{"name":"IMAGE","value":"$(params.IMAGE)"},{"name":"TAG","value":"$(tasks.nodejs-build-id.results.build-id)"},{"name":"SERVICE_NAME","value":"$(params.SERVICE_NAME)"},{"name":"CHART_CONTEXT_DIR","value":"$(tasks.build-type-check.results.chart-template)"}],"runAfter":["build-nodejs-docker-image"],"taskRef":{"name":"helm"},"when":[{"input":"$(tasks.build-type-check.results.nodejs-check)","operator":"in","values":["."]}],"workspaces":[{"name":"source","workspace":"source"}]},{"name":"postman-tests","params":[{"name":"COLLECTION","value":"$(params.SERVICE_NAME).json"}],"runAfter":["springboot-helm-chart"],"taskRef":{"name":"newman"},"when":[{"input":"$(tasks.build-type-check.results.nodejs-check)","operator":"in","values":["disabled"]}],"workspaces":[{"name":"source","workspace":"source"}]}],"workspaces":[{"description":"maven settings provided as configMap","name":"maven-settings"},{"description":"pvc provided as shared workspace between tasks","name":"source"}]}}
+    creationTimestamp: "2021-08-04T12:51:56Z"
+    generation: 18
+    name: build-pipeline-test0
+    namespace: tekton-pipelines
+    resourceVersion: "70292941"
+    uid: 4b473dcf-b3ce-4395-813c-d4aa9e8d1931
+  spec:
+    finally:
+    - name: cleanup-tmp-ns
+      params:
+      - name: SERVICE_NAME
+        value: $(params.SERVICE_NAME)
+      taskRef:
+        kind: Task
+        name: cleanup
+      when:
+      - input: $(tasks.build-type-check.results.standalone-check)
+        operator: in
+        values:
+        - standalone
+      workspaces:
+      - name: source
+        workspace: source
+    params:
+    - description: app code git url
+      name: url
+      type: string
+    - description: nexus docker image full path
+      name: IMAGE
+      type: string
+    - default: .
+      description: file check path
+      name: CONTEXT
+      type: string
+    - default: develop
+      description: tag,branch,commit_number
+      name: revision
+      type: string
+    - default: changeme
+      description: service name == deployment name
+      name: SERVICE_NAME
+      type: string
+    tasks:
+    - name: get-code
+      params:
+      - name: url
+        value: $(params.url)
+      - name: revision
+        value: $(params.revision)
+      taskRef:
+        kind: Task
+        name: git-clone
+      workspaces:
+      - name: source
+        workspace: source
+    - name: build-type-check
+      params:
+      - name: CONTEXT
+        value: $(params.CONTEXT)
+      runAfter:
+      - get-code
+      taskRef:
+        kind: Task
+        name: build-type-check
+      workspaces:
+      - name: source
+        workspace: source
+    - name: maven-build-lib
+      params:
+      - name: CONTEXT_DIR
+        value: $(tasks.build-type-check.results.shared-check)
+      - name: GOALS
+        value:
+        - -DskipTests
+        - deploy
+      runAfter:
+      - build-type-check
+      taskRef:
+        kind: Task
+        name: maven
+      when:
+      - input: $(tasks.build-type-check.results.shared-check)
+        operator: in
+        values:
+        - shared
+        - .
+      workspaces:
+      - name: source
+        workspace: source
+      - name: maven-settings
+        workspace: maven-settings
+    - name: maven-build-app
+      params:
+      - name: CONTEXT_DIR
+        value: $(tasks.build-type-check.results.standalone-check)
+      - name: GOALS
+        value:
+        - -DskipTests
+        - clean
+        - install
+      runAfter:
+      - build-type-check
+      taskRef:
+        kind: Task
+        name: maven
+      when:
+      - input: $(tasks.build-type-check.results.standalone-check)
+        operator: in
+        values:
+        - standalone
+      workspaces:
+      - name: source
+        workspace: source
+      - name: maven-settings
+        workspace: maven-settings
+    - name: npm-build-app
+      params:
+      - name: CONTEXT_DIR
+        value: $(tasks.build-type-check.results.nodejs-check)
+      runAfter:
+      - get-code
+      taskRef:
+        kind: Task
+        name: npm
+      when:
+      - input: $(tasks.build-type-check.results.nodejs-check)
+        operator: in
+        values:
+        - .
+      workspaces:
+      - name: source
+        workspace: source
+    - name: maven-build-id
+      params:
+      - name: CONTEXT_DIR
+        value: $(tasks.build-type-check.results.standalone-check)
+      runAfter:
+      - maven-build-app
+      taskRef:
+        kind: Task
+        name: generate-build-id-check
+      when:
+      - input: $(tasks.build-type-check.results.standalone-check)
+        operator: in
+        values:
+        - standalone
+      workspaces:
+      - name: source
+        workspace: source
+    - name: nodejs-build-id
+      params:
+      - name: CONTEXT_DIR
+        value: $(tasks.build-type-check.results.nodejs-check)
+      runAfter:
+      - npm-build-app
+      taskRef:
+        kind: Task
+        name: generate-build-id-check
+      when:
+      - input: $(tasks.build-type-check.results.nodejs-check)
+        operator: in
+        values:
+        - .
+      workspaces:
+      - name: source
+        workspace: source
+    - name: build-spring-docker-image
+      params:
+      - name: IMAGE
+        value: $(params.IMAGE):$(tasks.maven-build-id.results.build-id)
+      runAfter:
+      - maven-build-id
+      taskRef:
+        kind: Task
+        name: buildah
+      workspaces:
+      - name: source
+        workspace: source
+    - name: build-nodejs-docker-image
+      params:
+      - name: IMAGE
+        value: $(params.IMAGE):$(tasks.nodejs-build-id.results.build-id)
+      runAfter:
+      - nodejs-build-id
+      taskRef:
+        kind: Task
+        name: buildah
+      workspaces:
+      - name: source
+        workspace: source
+    - name: springboot-helm-chart
+      params:
+      - name: IMAGE
+        value: $(params.IMAGE)
+      - name: TAG
+        value: $(tasks.maven-build-id.results.build-id)
+      - name: SERVICE_NAME
+        value: $(params.SERVICE_NAME)
+      runAfter:
+      - build-spring-docker-image
+      taskRef:
+        kind: Task
+        name: helm
+      when:
+      - input: $(tasks.build-type-check.results.standalone-check)
+        operator: in
+        values:
+        - standalone
+      workspaces:
+      - name: source
+        workspace: source
+    - name: nodejs-helm-chart
+      params:
+      - name: IMAGE
+        value: $(params.IMAGE)
+      - name: TAG
+        value: $(tasks.nodejs-build-id.results.build-id)
+      - name: SERVICE_NAME
+        value: $(params.SERVICE_NAME)
+      - name: CHART_CONTEXT_DIR
+        value: $(tasks.build-type-check.results.chart-template)
+      runAfter:
+      - build-nodejs-docker-image
+      taskRef:
+        kind: Task
+        name: helm
+      when:
+      - input: $(tasks.build-type-check.results.nodejs-check)
+        operator: in
+        values:
+        - .
+      workspaces:
+      - name: source
+        workspace: source
+    - name: postman-tests
+      params:
+      - name: COLLECTION
+        value: $(params.SERVICE_NAME).json
+      runAfter:
+      - springboot-helm-chart
+      taskRef:
+        kind: Task
+        name: newman
+      when:
+      - input: $(tasks.build-type-check.results.nodejs-check)
+        operator: in
+        values:
+        - disabled
+      workspaces:
+      - name: source
+        workspace: source
+    workspaces:
+    - description: maven settings provided as configMap
+      name: maven-settings
+    - description: pvc provided as shared workspace between tasks
+      name: source
+- apiVersion: tekton.dev/v1beta1
+  kind: Pipeline
+  metadata:
+    annotations:
+      kubectl.kubernetes.io/last-applied-configuration: |
+        {"apiVersion":"tekton.dev/v1beta1","kind":"Pipeline","metadata":{"annotations":{},"name":"build-springboot","namespace":"tekton-pipelines"},"spec":{"params":[{"description":"app code git url","name":"url"},{"description":"nexus docker image full path","name":"IMAGE"},{"default":"standalone","description":"source code build path","name":"CONTEXT_DIR","type":"string"},{"default":".","description":"file check path","name":"CONTEXT","type":"string"},{"default":"develop","description":"tag,branch,commit_number","name":"revision","type":"string"},{"default":"changeme","description":"service name == deployment name","name":"SERVICE_NAME"}],"tasks":[{"name":"get-code","params":[{"name":"url","value":"$(params.url)"},{"name":"revision","value":"$(params.revision)"}],"taskRef":{"name":"git-clone"},"workspaces":[{"name":"source","workspace":"source"}]},{"name":"maven-build-lib","params":[{"name":"CONTEXT_DIR","value":"$(params.CONTEXT_DIR)"},{"name":"GOALS","value":["-DskipTests","deploy"]}],"runAfter":["get-code"],"taskRef":{"name":"maven"},"when":[{"input":"$(params.CONTEXT_DIR)","operator":"in","values":["shared","."]}],"workspaces":[{"name":"source","workspace":"source"},{"name":"maven-settings","workspace":"maven-settings"}]},{"name":"maven-build-app","params":[{"name":"CONTEXT_DIR","value":"$(params.CONTEXT_DIR)"},{"name":"GOALS","value":["-DskipTests","clean","install"]}],"runAfter":["get-code"],"taskRef":{"name":"maven"},"when":[{"input":"$(params.CONTEXT_DIR)","operator":"in","values":["standalone"]}],"workspaces":[{"name":"source","workspace":"source"},{"name":"maven-settings","workspace":"maven-settings"}]},{"name":"dockerfile-check","params":[{"name":"CONTEXT","value":"$(params.CONTEXT)"}],"runAfter":["get-code"],"taskRef":{"name":"file-check"},"workspaces":[{"name":"source","workspace":"source"}]},{"name":"get-build-id","params":[{"name":"CONTEXT_DIR","value":"$(params.CONTEXT_DIR)"}],"runAfter":["get-code"],"taskRef":{"name":"generate-build-id-check"},"when":[{"input":"$(params.CONTEXT_DIR)","operator":"in","values":["standalone"]}],"workspaces":[{"name":"source","workspace":"source"}]},{"name":"build-docker-image","params":[{"name":"IMAGE","value":"$(params.IMAGE):$(tasks.get-build-id.results.build-id)"}],"runAfter":["maven-build-app"],"taskRef":{"name":"buildah"},"workspaces":[{"name":"source","workspace":"source"}]},{"name":"create-helm-chart","params":[{"name":"IMAGE","value":"$(params.IMAGE)"},{"name":"TAG","value":"$(tasks.get-build-id.results.build-id)"},{"name":"SERVICE_NAME","value":"$(params.SERVICE_NAME)"}],"runAfter":["build-docker-image"],"taskRef":{"name":"helm"},"when":[{"input":"$(params.CONTEXT_DIR)","operator":"in","values":["standalone"]}],"workspaces":[{"name":"source","workspace":"source"}]}],"workspaces":[{"description":"maven settings provided as configMap","name":"maven-settings"},{"description":"pvc provided as shared workspace between tasks","name":"source"}]}}
+    creationTimestamp: "2021-07-13T10:28:02Z"
+    generation: 17
+    name: build-springboot
+    namespace: tekton-pipelines
+    resourceVersion: "41714036"
+    uid: 73253222-0f27-44b5-8a78-6dfe71ee9377
+  spec:
+    params:
+    - description: app code git url
+      name: url
+      type: string
+    - description: nexus docker image full path
+      name: IMAGE
+      type: string
+    - default: standalone
+      description: source code build path
+      name: CONTEXT_DIR
+      type: string
+    - default: .
+      description: file check path
+      name: CONTEXT
+      type: string
+    - default: develop
+      description: tag,branch,commit_number
+      name: revision
+      type: string
+    - default: changeme
+      description: service name == deployment name
+      name: SERVICE_NAME
+      type: string
+    tasks:
+    - name: get-code
+      params:
+      - name: url
+        value: $(params.url)
+      - name: revision
+        value: $(params.revision)
+      taskRef:
+        kind: Task
+        name: git-clone
+      workspaces:
+      - name: source
+        workspace: source
+    - name: maven-build-lib
+      params:
+      - name: CONTEXT_DIR
+        value: $(params.CONTEXT_DIR)
+      - name: GOALS
+        value:
+        - -DskipTests
+        - deploy
+      runAfter:
+      - get-code
+      taskRef:
+        kind: Task
+        name: maven
+      when:
+      - input: $(params.CONTEXT_DIR)
+        operator: in
+        values:
+        - shared
+        - .
+      workspaces:
+      - name: source
+        workspace: source
+      - name: maven-settings
+        workspace: maven-settings
+    - name: maven-build-app
+      params:
+      - name: CONTEXT_DIR
+        value: $(params.CONTEXT_DIR)
+      - name: GOALS
+        value:
+        - -DskipTests
+        - clean
+        - install
+      runAfter:
+      - get-code
+      taskRef:
+        kind: Task
+        name: maven
+      when:
+      - input: $(params.CONTEXT_DIR)
+        operator: in
+        values:
+        - standalone
+      workspaces:
+      - name: source
+        workspace: source
+      - name: maven-settings
+        workspace: maven-settings
+    - name: dockerfile-check
+      params:
+      - name: CONTEXT
+        value: $(params.CONTEXT)
+      runAfter:
+      - get-code
+      taskRef:
+        kind: Task
+        name: file-check
+      workspaces:
+      - name: source
+        workspace: source
+    - name: get-build-id
+      params:
+      - name: CONTEXT_DIR
+        value: $(params.CONTEXT_DIR)
+      runAfter:
+      - get-code
+      taskRef:
+        kind: Task
+        name: generate-build-id-check
+      when:
+      - input: $(params.CONTEXT_DIR)
+        operator: in
+        values:
+        - standalone
+      workspaces:
+      - name: source
+        workspace: source
+    - name: build-docker-image
+      params:
+      - name: IMAGE
+        value: $(params.IMAGE):$(tasks.get-build-id.results.build-id)
+      runAfter:
+      - maven-build-app
+      taskRef:
+        kind: Task
+        name: buildah
+      workspaces:
+      - name: source
+        workspace: source
+    - name: create-helm-chart
+      params:
+      - name: IMAGE
+        value: $(params.IMAGE)
+      - name: TAG
+        value: $(tasks.get-build-id.results.build-id)
+      - name: SERVICE_NAME
+        value: $(params.SERVICE_NAME)
+      runAfter:
+      - build-docker-image
+      taskRef:
+        kind: Task
+        name: helm
+      when:
+      - input: $(params.CONTEXT_DIR)
+        operator: in
+        values:
+        - standalone
+      workspaces:
+      - name: source
+        workspace: source
+    workspaces:
+    - description: maven settings provided as configMap
+      name: maven-settings
+    - description: pvc provided as shared workspace between tasks
+      name: source
+- apiVersion: tekton.dev/v1beta1
+  kind: Pipeline
+  metadata:
+    annotations:
+      kubectl.kubernetes.io/last-applied-configuration: |
+        {"apiVersion":"tekton.dev/v1beta1","kind":"Pipeline","metadata":{"annotations":{},"name":"build-springboot-nhelm","namespace":"tekton-pipelines"},"spec":{"params":[{"description":"app code git url","name":"url"},{"description":"nexus docker image full path","name":"IMAGE"},{"default":"standalone","name":"CONTEXT_DIR","type":"string"},{"default":".","name":"CONTEXT","type":"string"},{"default":"develop","description":"tag,branch,commit_number","name":"revision","type":"string"},{"name":"SERVICE_NAME"}],"tasks":[{"name":"get-code","params":[{"name":"url","value":"$(params.url)"},{"name":"revision","value":"$(params.revision)"}],"taskRef":{"name":"git-clone"},"workspaces":[{"name":"source","workspace":"source"}]},{"name":"maven-build-lib","params":[{"name":"CONTEXT_DIR","value":"$(params.CONTEXT_DIR)"},{"name":"GOALS","value":["-DskipTests","deploy"]}],"runAfter":["get-code"],"taskRef":{"name":"maven"},"when":[{"input":"$(params.CONTEXT_DIR)","operator":"in","values":["shared","."]}],"workspaces":[{"name":"source","workspace":"source"},{"name":"maven-settings","workspace":"maven-settings"}]},{"name":"maven-build-app","params":[{"name":"CONTEXT_DIR","value":"$(params.CONTEXT_DIR)"},{"name":"GOALS","value":["-DskipTests","clean","install"]}],"runAfter":["get-code"],"taskRef":{"name":"maven"},"when":[{"input":"$(params.CONTEXT_DIR)","operator":"in","values":["standalone"]}],"workspaces":[{"name":"source","workspace":"source"},{"name":"maven-settings","workspace":"maven-settings"}]},{"name":"dockerfile-check","params":[{"name":"CONTEXT","value":"$(params.CONTEXT)"}],"runAfter":["get-code"],"taskRef":{"name":"file-check"},"workspaces":[{"name":"source","workspace":"source"}]},{"name":"get-build-id","params":[{"name":"CONTEXT_DIR","value":"$(params.CONTEXT_DIR)"}],"runAfter":["get-code"],"taskRef":{"name":"generate-build-id-copy"},"when":[{"input":"$(params.CONTEXT_DIR)","operator":"in","values":["standalone"]}],"workspaces":[{"name":"source","workspace":"source"}]},{"name":"build-docker-image","params":[{"name":"IMAGE","value":"$(params.IMAGE):$(tasks.get-build-id.results.build-id)"}],"runAfter":["maven-build-app"],"taskRef":{"name":"buildah"},"workspaces":[{"name":"source","workspace":"source"}]},{"name":"create-helm-chart","params":[{"name":"IMAGE","value":"$(params.IMAGE)"},{"name":"TAG","value":"$(tasks.get-build-id.results.build-id)"},{"name":"SERVICE_NAME","value":"$(params.SERVICE_NAME)"}],"runAfter":["build-docker-image"],"taskRef":{"name":"helm"},"when":[{"input":"$(params.CONTEXT_DIR)","operator":"in","values":["standalone"]}],"workspaces":[{"name":"source","workspace":"source"}]}],"workspaces":[{"name":"maven-settings"},{"name":"source"}]}}
+    creationTimestamp: "2021-07-14T15:24:08Z"
+    generation: 2
+    name: build-springboot-nhelm
+    namespace: tekton-pipelines
+    resourceVersion: "29862760"
+    uid: ab016ac7-ad80-42ea-8f3d-af668f832cf7
+  spec:
+    params:
+    - description: app code git url
+      name: url
+      type: string
+    - description: nexus docker image full path
+      name: IMAGE
+      type: string
+    - default: standalone
+      name: CONTEXT_DIR
+      type: string
+    - default: .
+      name: CONTEXT
+      type: string
+    - default: develop
+      description: tag,branch,commit_number
+      name: revision
+      type: string
+    - name: SERVICE_NAME
+      type: string
+    tasks:
+    - name: get-code
+      params:
+      - name: url
+        value: $(params.url)
+      - name: revision
+        value: $(params.revision)
+      taskRef:
+        kind: Task
+        name: git-clone
+      workspaces:
+      - name: source
+        workspace: source
+    - name: maven-build-lib
+      params:
+      - name: CONTEXT_DIR
+        value: $(params.CONTEXT_DIR)
+      - name: GOALS
+        value:
+        - -DskipTests
+        - deploy
+      runAfter:
+      - get-code
+      taskRef:
+        kind: Task
+        name: maven
+      when:
+      - input: $(params.CONTEXT_DIR)
+        operator: in
+        values:
+        - shared
+        - .
+      workspaces:
+      - name: source
+        workspace: source
+      - name: maven-settings
+        workspace: maven-settings
+    - name: maven-build-app
+      params:
+      - name: CONTEXT_DIR
+        value: $(params.CONTEXT_DIR)
+      - name: GOALS
+        value:
+        - -DskipTests
+        - clean
+        - install
+      runAfter:
+      - get-code
+      taskRef:
+        kind: Task
+        name: maven
+      when:
+      - input: $(params.CONTEXT_DIR)
+        operator: in
+        values:
+        - standalone
+      workspaces:
+      - name: source
+        workspace: source
+      - name: maven-settings
+        workspace: maven-settings
+    - name: dockerfile-check
+      params:
+      - name: CONTEXT
+        value: $(params.CONTEXT)
+      runAfter:
+      - get-code
+      taskRef:
+        kind: Task
+        name: file-check
+      workspaces:
+      - name: source
+        workspace: source
+    - name: get-build-id
+      params:
+      - name: CONTEXT_DIR
+        value: $(params.CONTEXT_DIR)
+      runAfter:
+      - get-code
+      taskRef:
+        kind: Task
+        name: generate-build-id-copy
+      when:
+      - input: $(params.CONTEXT_DIR)
+        operator: in
+        values:
+        - standalone
+      workspaces:
+      - name: source
+        workspace: source
+    - name: build-docker-image
+      params:
+      - name: IMAGE
+        value: $(params.IMAGE):$(tasks.get-build-id.results.build-id)
+      runAfter:
+      - maven-build-app
+      taskRef:
+        kind: Task
+        name: buildah
+      workspaces:
+      - name: source
+        workspace: source
+    - name: create-helm-chart
+      params:
+      - name: IMAGE
+        value: $(params.IMAGE)
+      - name: TAG
+        value: $(tasks.get-build-id.results.build-id)
+      - name: SERVICE_NAME
+        value: $(params.SERVICE_NAME)
+      runAfter:
+      - build-docker-image
+      taskRef:
+        kind: Task
+        name: helm
+      when:
+      - input: $(params.CONTEXT_DIR)
+        operator: in
+        values:
+        - standalone
+      workspaces:
+      - name: source
+        workspace: source
+    workspaces:
+    - name: maven-settings
+    - name: source
+- apiVersion: tekton.dev/v1beta1
+  kind: Pipeline
+  metadata:
+    annotations:
+      kubectl.kubernetes.io/last-applied-configuration: |
+        {"apiVersion":"tekton.dev/v1beta1","kind":"Pipeline","metadata":{"annotations":{},"name":"build-test-0","namespace":"tekton-pipelines"},"spec":{"params":[{"name":"url"},{"name":"IMAGE"},{"default":"-DskipTests,clean,install","description":"maven goals - clean, install","name":"GOALS"},{"default":"standalone","name":"CONTEXT_DIR"},{"default":"develop","name":"revision"}],"tasks":[{"name":"get-code","params":[{"name":"url","value":"$(params.url)"}],"taskRef":{"name":"git-clone"},"workspaces":[{"name":"source","workspace":"source"}]},{"name":"maven-build","params":[{"name":"CONTEXT_DIR","value":"$(params.CONTEXT_DIR)"}],"runAfter":["get-code"],"taskRef":{"name":"maven"},"workspaces":[{"name":"source","workspace":"source"},{"name":"maven-settings","workspace":"maven-settings"}]},{"name":"get-build-id","params":[{"name":"CONTEXT_DIR","value":"$(params.CONTEXT_DIR)"}],"runAfter":["maven-build"],"taskRef":{"name":"generate-build-id-copy"},"workspaces":[{"name":"source","workspace":"source"}]},{"name":"buuild-docker-image","params":[{"name":"IMAGE","value":"$(params.IMAGE):$(tasks.get-build-id.results.build-id)"}],"runAfter":["get-build-id"],"taskRef":{"name":"buildah"},"workspaces":[{"name":"source","workspace":"source"}]}],"workspaces":[{"name":"maven-settings"},{"name":"source"}]}}
+    creationTimestamp: "2021-07-08T12:39:33Z"
+    generation: 53
+    name: build-test-0
+    namespace: tekton-pipelines
+    resourceVersion: "27430267"
+    uid: 6bce291a-f34d-4a1a-8045-aacc80560116
+  spec:
+    params:
+    - name: url
+      type: string
+    - name: IMAGE
+      type: string
+    - default: -DskipTests,clean,install
+      description: maven goals - clean, install
+      name: GOALS
+      type: string
+    - default: standalone
+      name: CONTEXT_DIR
+      type: string
+    - default: develop
+      name: revision
+      type: string
+    tasks:
+    - name: get-code
+      params:
+      - name: url
+        value: $(params.url)
+      taskRef:
+        kind: Task
+        name: git-clone
+      workspaces:
+      - name: source
+        workspace: source
+    - name: maven-build
+      params:
+      - name: CONTEXT_DIR
+        value: $(params.CONTEXT_DIR)
+      runAfter:
+      - get-code
+      taskRef:
+        kind: Task
+        name: maven
+      workspaces:
+      - name: source
+        workspace: source
+      - name: maven-settings
+        workspace: maven-settings
+    - name: get-build-id
+      params:
+      - name: CONTEXT_DIR
+        value: $(params.CONTEXT_DIR)
+      runAfter:
+      - maven-build
+      taskRef:
+        kind: Task
+        name: generate-build-id-copy
+      workspaces:
+      - name: source
+        workspace: source
+    - name: buuild-docker-image
+      params:
+      - name: IMAGE
+        value: $(params.IMAGE):$(tasks.get-build-id.results.build-id)
+      runAfter:
+      - get-build-id
+      taskRef:
+        kind: Task
+        name: buildah
+      workspaces:
+      - name: source
+        workspace: source
+    workspaces:
+    - name: maven-settings
+    - name: source
+kind: List
+metadata:
+  resourceVersion: ""
+  selfLink: ""
