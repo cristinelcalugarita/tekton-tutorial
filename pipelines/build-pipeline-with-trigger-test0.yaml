@@ -223,9 +223,9 @@ spec:
   finally:
     - name: cleanup-tmp-ns
       when:
-        - input: "$(tasks.build-type-check.results.standalone-check)"
-          operator: in
-          values: ["standalone"]
+        - input: "$(tasks.build-type-check.results.shared-check)"
+          operator: notin
+          values: ["shared","."]
       taskRef:
         name: cleanup
       params:
