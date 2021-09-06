@@ -1,0 +1,14 @@
+apiVersion: traefik.containo.us/v1alpha1
+kind: IngressRouteTCP
+metadata:
+  annotations:
+  name: gitea-ssh-ingress-tcp-route
+  namespace: gitea
+spec:
+  entryPoints:
+  - ssh
+  routes:
+  - match: HostSNI(`*`)
+    services:
+    - name: gitea-ssh
+      port: 22022
