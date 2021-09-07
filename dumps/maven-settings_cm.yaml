@@ -1,0 +1,39 @@
+apiVersion: v1
+data:
+  settings.xml: |
+    <?xml version="1.0" encoding="UTF-8"?>
+
+    <settings xmlns="http://maven.apache.org/SETTINGS/1.0.0"
+              xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+              xsi:schemaLocation="http://maven.apache.org/SETTINGS/1.0.0 http://maven.apache.org/xsd/settings-1.0.0.xsd">
+
+
+
+      <localRepository>~/.m2/repository</localRepository>
+
+      <mirrors>
+        <mirror>
+          <!--This sends everything else to /public -->
+          <id>nexus</id>
+          <mirrorOf>*</mirrorOf>
+          <url>http://nexus.l21d31708530003.local/repository/maven-public/</url>
+        </mirror>
+      </mirrors>
+
+      <servers>
+        <server>
+          <id>lab-limits</id>
+          <username>pipeline</username>
+          <password>pipeline</password>
+        </server>
+      </servers>
+
+
+    </settings>
+kind: ConfigMap
+metadata:
+  creationTimestamp: "2021-07-20T12:53:54Z"
+  name: maven-settings
+  namespace: tekton-pipelines
+  resourceVersion: "43107872"
+  uid: 5fd85fb3-88e1-4b00-bc3a-3c674c1627e4
