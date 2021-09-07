@@ -1,0 +1,15 @@
+	<repositories>
+		<repository>
+			<id>lab-limits</id>
+			<url>http://nexus.l21d31708530003.local/repository/lab-limits/</url>
+            <releases><enabled>true</enabled></releases>
+            <snapshots><enabled>true</enabled></snapshots>
+        </repository>
+    </repositories>
+
+    <distributionManagement>
+        <repository>
+            <id>lab-limits</id>
+	    <url>http://nexus.l21d31708530003.local/repository/lab-limits/</url>
+        </repository>
+    </distributionManagement>
