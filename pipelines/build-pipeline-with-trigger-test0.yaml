@@ -220,6 +220,39 @@ spec:
       workspaces:
         - name: source
           workspace: source
+    - name: deploy-springboot-helm-chart
+      taskRef:
+        name: helm-install-proj
+      runAfter:
+        - springboot-helm-chart
+        # - nodejs-helm-chart
+      params:
+        - name: IMAGE
+          value: "$(params.IMAGE)"
+        - name: TAG
+          value: "$(tasks.maven-build-id.results.build-id)"
+        - name: SERVICE_NAME
+          value: "$(params.SERVICE_NAME)"
+      workspaces:
+        - name: source
+          workspace: source
+    - name: deploy-nodejs-helm-chart
+      taskRef:
+        name: helm-install-proj
+      runAfter:
+        - nodejs-helm-chart
+      params:
+        - name: IMAGE
+          value: "$(params.IMAGE)"
+        - name: TAG
+          value: "$(tasks.nodejs-build-id.results.build-id)"
+        - name: SERVICE_NAME
+          value: "$(params.SERVICE_NAME)"
+        - name: CHART_CONTEXT_DIR
+          value: charts/limits-template-nodejs
+      workspaces:
+        - name: source
+          workspace: source
   finally:
     - name: cleanup-tmp-ns
       when:

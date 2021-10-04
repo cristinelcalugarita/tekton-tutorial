@@ -1,0 +1,62 @@
+apiVersion: tekton.dev/v1beta1
+kind: Task
+metadata:
+  name: helm-install-proj
+spec:
+  params:
+    - name: IMAGE
+      default: test
+    - name: SERVICE_NAME
+      default: test-service
+    - name: TAG
+      default: v1-test
+    - name: CONTEXT_DIR
+      default: "."
+    - name: PROJ_NS
+      default: limits
+    - name: HELM_REPO_URL
+      default: http://chartmuseum.l21d31708530003.local
+    - name: HELM_REPO_SECRET
+      default: lab-chartmuseum
+    - name: LOCAL_REPO
+      default: lab-helmrepo
+    - name: HELM_IMAGE
+      default: nexus.l21d31708530003.local:5000/helm:alpine-slim
+    - name: CHART_TEMPLATE_URL
+      default: ssh://git@git.l21d31708530003.local:22022/LAB.l21d31708530003/lab-devops.git
+    - name: CHART_CONTEXT_DIR
+      default: charts/limits-template-novault
+    - name: BUILDREVISION
+      default: develop
+  workspaces:
+    - name: source
+  # results:
+  #   - name: helm-push
+  #     description: helm push information
+  steps:
+    - name: helm-install
+      workingDir: "$(workspaces.source.path)/$(params.CONTEXT_DIR)"
+      image: $(params.HELM_IMAGE)
+      env:
+        - name: BASIC_AUTH_USER
+          valueFrom:
+            secretKeyRef:
+              key: BASIC_AUTH_USER
+              name: $(params.HELM_REPO_SECRET)
+        - name: BASIC_AUTH_PASS
+          valueFrom:
+            secretKeyRef:
+              key: BASIC_AUTH_PASS
+              name: $(params.HELM_REPO_SECRET)
+      script: |
+        #!/usr/bin/env bash
+        set -e
+
+        TOOLS_PATH="$(workspaces.source.path)/$(params.CONTEXT_DIR)"/tools
+
+        pushd $TOOLS_PATH/$(params.CHART_CONTEXT_DIR)
+
+        printf "Helm Chart Installation in Project $(params.PROJ_NS) Namespace \n"
+        helm upgrade $(params.SERVICE_NAME) . --install --namespace $(params.PROJ_NS) --wait --timeout 600s --debug --recreate-pods --cleanup-on-fail
+
+        popd
